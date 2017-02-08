@@ -22,6 +22,19 @@ using namespace std;
 typedef vector<int> rowVector;
 typedef vector<double> rowWeight;
 
+void built_0_mat(vector<rowVector>& o_mat, unsigned int rn, unsigned int cn);
+
+void built_mat(vector<rowVector>& o_mat, unsigned int rn, unsigned int cn, unsigned int rindx, unsigned int cindx, vector<rowVector>& i_mat, unsigned int append_bias);
+//void add_bias(vector<rowVector>& o_mat, unsigned int rn);
+void built_w_mat(vector<rowWeight>& o_mat, unsigned int rn, unsigned int cn);
+void transpose_mat(vector<rowVector>& x_mat, unsigned int rn, unsigned int cn, vector<rowVector>& x_t_mat);
+void mult_mat(vector<rowVector>& a_mat, unsigned int rn_a, unsigned int cn_a, vector<rowWeight>& b_mat, unsigned int rn_b, unsigned int cn_b,vector<rowVector>& c_mat);
+void mult_mat(vector<rowVector>& a_mat, unsigned int rn_a, unsigned int cn_a, vector<rowVector>& b_mat, unsigned int rn_b, unsigned int cn_b,vector<rowVector>& c_mat);
+void add_mat(vector<rowVector>& a_mat, unsigned int rn_a, unsigned int cn_a, vector<rowVector>& b_mat, unsigned int rn_b, unsigned int cn_b,vector<rowVector>& c_mat);
+void neg_mat(vector<rowVector>& x_mat, unsigned int rn, unsigned int cn, vector<rowVector>& neg_x_mat);
+
+void print_mat(vector<rowVector>& o_mat, unsigned int rn, unsigned int cn);
+
 
 
 int main() {
@@ -33,7 +46,6 @@ int main() {
 	}
 
 	// Reading Data and put in a vector
-
 	string line;
 	vector<rowVector> from_text;
 	vector<rowVector> x_mat;
@@ -44,6 +56,7 @@ int main() {
 	vector<rowVector> y_mat;
 
 	vector<rowVector> test_mat;
+
 
 
 	unsigned int num_trainData, num_testData, num_output, num_input;
@@ -67,6 +80,8 @@ cout << "READ DATA FROM FILE "<<endl;
 			}
 		}
 
+
+
 cout << "EXTRACT AND STORE DATA "<<endl;
 
 		num_input = (unsigned int) from_text[0][0];
@@ -79,74 +94,33 @@ cout << "EXTRACT AND STORE DATA "<<endl;
 //		cout << "# of train Data sets are " << num_trainData <<  endl;
 //		cout << "# of test Data sets are " << num_testData <<  endl;
 
-//		Put Data and target in related matrices
 // x_mat and t_mat
-for (unsigned int i = 0; i < num_trainData; ++i) {
-	x_mat.push_back(rowVector());
-	t_mat.push_back(rowVector());
-	for (unsigned int j = 0; j < num_input; ++j) {  // fill x
-		int value = from_text[i+2][j];
-		x_mat.back().push_back(value);
-	}
-	x_mat.back().push_back(-1); // append -1 to the end of x_mat
+		unsigned int append_bias = 1;
+		built_mat(x_mat, num_trainData, num_input, 2, 0, from_text, append_bias);
+
+		append_bias = 0;
+		built_mat(t_mat, num_trainData, num_output, 2, num_input, from_text, append_bias);
+
+		built_w_mat(w_mat, num_input+1, num_output); // Do not forget to add extra row for bias
+
+		built_0_mat(y_mat, num_trainData, num_output);
+		mult_mat(x_mat, num_trainData, num_input+1, w_mat, num_input+1, num_output, y_mat);
+
+		vector<rowVector> neg_y_mat;
+		built_0_mat(neg_y_mat, num_trainData, num_output);
+		neg_mat(y_mat, num_trainData, num_output, neg_y_mat);
+
+		vector<rowVector> temp_error_mat;
+		built_0_mat(temp_error_mat, num_trainData, num_output);
+		add_mat(t_mat, num_trainData, num_output, neg_y_mat, num_trainData, num_output, temp_error_mat);
+
+		built_0_mat(x_mat_tr, num_input+1, num_trainData);
+		transpose_mat(x_mat, num_trainData, num_input+1, x_mat_tr);
 
 
-	for (unsigned int j = 0; j < num_output; ++j) { //fill t matrix
-		int target = from_text[i+2][j+num_input];
-		t_mat.back().push_back(target);
-	}
-}
 
-for (unsigned int i = 0; i <= num_input; ++i) {
-	w_mat.push_back(rowWeight());
-	for (unsigned int j = 0; j < num_output; ++j) {
-		double u = (double)rand() / RAND_MAX;
-		w_mat.back().push_back((2.0*u-1)/10.0);
-	}
-}
-
-
-//cout << "transpose x" << endl;
-// Transpose x_mat;
-for (unsigned int i = 0; i <= num_input ; ++i) {
-	x_mat_tr.push_back(rowVector());
-	for (unsigned int j = 0; j <num_trainData; ++j) {
-		int x_ji = x_mat[j][i];
-		x_mat_tr.back().push_back(x_ji);
-	}
-}
-
-//cout << "x*w and apply transfer function" << endl;
-//y = x*w and apply transfer function
-	for (unsigned int i = 0; i < num_trainData; ++i) {
-		y_mat.push_back(rowVector());
-		for (unsigned int j = 0; j <num_output; ++j) {
-			double sum = 0;
-			for (unsigned int k = 0; k <= num_input; ++k) {
-				int x_ik = x_mat[i][k];
-				double w_kj = w_mat[k][j];
-				sum += w_kj* (double) x_ik;
-			}
-			int y_ij = (sum >	0.0) ? 1 : 0;
-			y_mat.back().push_back(y_ij);
-		}
-	}
-
-
-//	cout << "d = xtr*(t-y)" << endl;
-	//d = x_mat_tr*(t-y)
-	for (unsigned int i = 0; i <= num_input; ++i) {
-		d_mat.push_back(rowVector());
-		for (unsigned int j = 0; j < num_output; ++j) {
-			int sum = 0;
-			for (unsigned int k = 0; k < num_trainData; ++k) {
-				int x_tr_ik = x_mat_tr[i][k];
-				int ty_kj = t_mat[k][j]-y_mat[k][j];
-				sum += ty_kj*x_tr_ik;
-			}
-			d_mat.back().push_back(sum);
-		}
-	}
+		built_0_mat(d_mat, num_input+1, num_output);
+		mult_mat(x_mat_tr, num_input+1, num_trainData, temp_error_mat, num_trainData, num_output, d_mat);
 
 
 	//update weights
@@ -160,40 +134,21 @@ cout << "BEGIN TRAINING NN " << endl;
 int error_check = 0;
 while((error_check < 100)) {//Do the loop
 		//y = x*w and apply transfer function
-		for (unsigned int i = 0; i < num_trainData; ++i) {
-			for (unsigned int j = 0; j <num_output; ++j) {
-				double sum = 0;
-				for (unsigned int k = 0; k <= num_input; ++k) {
-					int x_ik = x_mat[i][k];
-					double w_kj = w_mat[k][j];
-					sum += w_kj* (double) x_ik;
-				}
-				int y_ij = (sum >	0.0) ? 1 : 0;
-				y_mat[i][j] = y_ij;
-			}
-		}
+	mult_mat(x_mat, num_trainData, num_input+1, w_mat, num_input+1, num_output, y_mat);
 
+	neg_mat(y_mat, num_trainData, num_output, neg_y_mat);
 
-		//d = x_mat_tr*(t-y)
-		for (unsigned int i = 0; i <= num_input; ++i) {
-			for (unsigned int j = 0; j < num_output; ++j) {
-				int sum = 0;
-				for (unsigned int k = 0; k < num_trainData; ++k) {
-					int x_tr_ik = x_mat_tr[i][k];
-					int ty_kj = t_mat[k][j]-y_mat[k][j];
-					sum += ty_kj*x_tr_ik;
-				}
-				d_mat[i][j] = (sum);
-			}
-		}
+	add_mat(t_mat, num_trainData, num_output, neg_y_mat, num_trainData, num_output, temp_error_mat);
+
+	mult_mat(x_mat_tr, num_input+1, num_trainData, temp_error_mat, num_trainData, num_output, d_mat);
 
 		//update weights
-		for (unsigned int i = 0; i <= num_input; ++i) {
-			for (unsigned int j = 0; j < num_output; ++j) {
-				w_mat[i][j] += 0.1*(double)d_mat[i][j];
-			}
+	for (unsigned int i = 0; i <= num_input; ++i) {
+		for (unsigned int j = 0; j < num_output; ++j) {
+			w_mat[i][j] += 0.1*(double)d_mat[i][j];
 		}
-		error_check++;
+	}
+	error_check++;
 };
 
 
@@ -201,35 +156,11 @@ while((error_check < 100)) {//Do the loop
 // TEST DATA
 cout << "BEGIN TESTING" << endl;
 
-for (unsigned int i = 0; i < num_testData; ++i) {
-	test_mat.push_back(rowVector());
-	for (unsigned int j = 0; j < num_input; ++j) {  // fill x
-		int value = from_text[i+3+num_trainData][j];
-		test_mat.back().push_back(value);
-	}
-	test_mat.back().push_back(-1); // append -1 to the end of x_mat
+append_bias = 1;
+built_mat(test_mat, num_testData, num_input, 3+num_trainData, 0, from_text, append_bias);
 
-	for (unsigned int j = 0; j <= num_input; ++j) {  // fill x
-		}
+mult_mat(test_mat, num_testData, num_input+1, w_mat, num_input+1, num_output, y_mat);
 
-}
-
-
-//cout << "test_mat*w and apply transfer function" << endl;
-//y = test_mat*w and apply transfer function
-for (unsigned int i = 0; i < num_testData; ++i) {
-	y_mat.push_back(rowVector());
-	for (unsigned int j = 0; j <num_output; ++j) {
-		double sum = 0;
-		for (unsigned int k = 0; k <= num_input; ++k) {
-			int x_ik = test_mat[i][k];
-			double w_kj = w_mat[k][j];
-			sum += w_kj * (double) x_ik;
-		}
-		int y_ij = (sum >0.0) ? 1 : 0;
-		y_mat.back().push_back(y_ij);
-	}
-}
 
 
 
@@ -251,25 +182,123 @@ for (unsigned int i = 0; i < num_testData; ++i) {
 }
 
 
+/*MY FUNCTIONS BODY*/
+
+void built_mat(vector<rowVector>& o_mat, unsigned int rn, unsigned int cn, unsigned int rindx, unsigned int cindx, vector<rowVector>& i_mat, unsigned int append_bias){
+	for (unsigned int i = 0; i < rn; ++i) {
+		o_mat.push_back(rowVector());
+		for (unsigned int j = 0; j < cn; ++j) {  // fill x
+			int value = i_mat[i+rindx][j+cindx];
+			o_mat.back().push_back(value);
+		}
+		if (append_bias) {
+			o_mat.back().push_back(-1);
+		}
+	}
+
+};
+
+
+void add_bias(vector<rowVector>& o_mat, unsigned int rn){
+	for (unsigned int i = 0; i < rn; ++i) {
+		o_mat.push_back(rowVector());
+		o_mat.back().push_back(-1); // append -1 to the end of x_mat
+	}
+};
 
 
 
+void built_w_mat(vector<rowWeight>& o_mat, unsigned int rn, unsigned int cn){
+	for (unsigned int i = 0; i < rn; ++i) { // Considers bias automatically
+		o_mat.push_back(rowWeight());
+		for (unsigned int j = 0; j < cn; ++j) {
+			double u = (double)rand() / RAND_MAX;
+			o_mat.back().push_back((2.0*u-1)/10.0);
+		}
+	}
+};
 
 
+void print_mat(vector<rowVector>& o_mat, unsigned int rn, unsigned int cn){
+	for (unsigned int i = 0; i < rn; ++i) {
+
+		for (unsigned int j = 0; j <cn; ++j) {
+			cout << o_mat[i][j] << " ";
+		}
+		cout << endl;
+	}
+};
 
 
+void transpose_mat(vector<rowVector>& x_mat, unsigned int rn, unsigned int cn, vector<rowVector>& x_t_mat){
+	for (unsigned int i = 0; i < cn ; ++i) {
+		for (unsigned int j = 0; j <rn; ++j) {
+			int x_ji = x_mat[j][i];
+			x_t_mat[i][j] = x_ji;
+		}
+	}
+};
+
+void mult_mat(vector<rowVector>& a_mat, unsigned int rn_a, unsigned int cn_a, vector<rowWeight>& b_mat, unsigned int rn_b, unsigned int cn_b, vector<rowVector>& c_mat){
+
+	for (unsigned int i = 0; i < rn_a; ++i) {
+			for (unsigned int j = 0; j <cn_b; ++j) {
+				double sum = 0;
+				for (unsigned int k = 0; k <cn_a; ++k) {
+					int a_ik = a_mat[i][k];
+					double b_kj = b_mat[k][j];
+					sum += b_kj* (double) a_ik;
+				}
+				int y_ij = (sum >	0.0) ? 1 : 0;
+				c_mat[i][j] = y_ij;
+			}
+		}
+
+};
+
+void mult_mat(vector<rowVector>& a_mat, unsigned int rn_a, unsigned int cn_a, vector<rowVector>& b_mat, unsigned int rn_b, unsigned int cn_b, vector<rowVector>& c_mat){
+
+	for (unsigned int i = 0; i < rn_a; ++i) {
+			for (unsigned int j = 0; j <cn_b; ++j) {
+				double sum = 0;
+				for (unsigned int k = 0; k <cn_a; ++k) {
+					int a_ik = a_mat[i][k];
+					double b_kj = b_mat[k][j];
+					sum += b_kj* a_ik;
+				}
+				c_mat[i][j] = sum;
+			}
+		}
+
+};
+
+void neg_mat(vector<rowVector>& x_mat, unsigned int rn, unsigned int cn, vector<rowVector>& neg_x_mat){
+	for (unsigned int i = 0; i < rn; ++i) {
+		for (unsigned int j = 0; j <cn; ++j) {
+			int val = -1*x_mat[i][j];
+			neg_x_mat[i][j] = val;
+		}
+	}
+};
 
 
+void add_mat(vector<rowVector>& a_mat, unsigned int rn_a, unsigned int cn_a, vector<rowVector>& b_mat, unsigned int rn_b, unsigned int cn_b,vector<rowVector>& c_mat){
+	for (unsigned int i = 0; i < rn_a; ++i) {
+		for (unsigned int j = 0; j <cn_a; ++j) {
+			int val = a_mat[i][j]+b_mat[i][j];
+			c_mat[i][j] = val;;
+		}
+	}
+};
 
-
-
-
-
-
-
-
-
-
+void built_0_mat(vector<rowVector>& o_mat, unsigned int rn, unsigned int cn){
+	for (unsigned int i = 0; i < rn; ++i) { // Considers bias automatically
+		o_mat.push_back(rowVector());
+		for (unsigned int j = 0; j < cn; ++j) {
+			o_mat.back().push_back(0);
+		}
+	}
+};
 
 
 //	ofstream _ofile;
@@ -280,15 +309,6 @@ for (unsigned int i = 0; i < num_testData; ++i) {
 //	}
 
 
-//void CreatMat(vector<rowVector> &x_mat, unsigned int num_traintData, unsigned int num_inputs, unsigned int index_row, unsigned int index_col, vector<rowVector> &from_text ){
-//for (unsigned int i = 0; i < num_traintData; ++i) {
-//	x_mat.push_back(rowVector());
-//	for (unsigned int j = 0; j < num_inputs; ++j) {
-//		int value = from_text[i][j];
-//		x_mat.back().push_back(value);
-//	}
-//}
-//}
 
 
 
